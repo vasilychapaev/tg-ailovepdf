@@ -6,13 +6,13 @@ ARTISAN ?= $(SAIL) artisan
 setup:
 	composer install
 
-sail-up:
+up:
 	$(SAIL) up -d
 
-sail-down:
+down:
 	$(SAIL) down
 
-sail-restart:
+restart:
 	$(SAIL) restart
 
 migrate:
