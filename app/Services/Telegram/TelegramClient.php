@@ -8,12 +8,18 @@ use Illuminate\Support\Facades\Log;
 class TelegramClient
 {
     protected string $baseUrl;
+    protected string $fileBaseUrl;
+    protected string $token;
 
     public function __construct(
-        protected readonly string $token = ''
+        protected readonly string $tokenParam = ''
     ) {
-        $tok = $token ?: (string) config('services.telegram.bot_token');
+        $tok = $this->tokenParam
+            ?: (string) (config('services.telegram.bot_token') ?? '')
+            ?: (string) env('TELEGRAM_BOT_TOKEN', '');
+        $this->token = $tok;
         $this->baseUrl = 'https://api.telegram.org/bot' . $tok . '/';
+        $this->fileBaseUrl = 'https://api.telegram.org/file/bot' . $tok . '/';
     }
 
     /**
@@ -74,5 +80,34 @@ class TelegramClient
         }
         $resp = Http::asMultipart()->post($url, $multipart);
         return $resp->json() ?? [];
+    }
+
+    /**
+     * getFile: resolve file_id to file_path
+     */
+    public function getFile(string $fileId): ?array
+    {
+        $url = $this->baseUrl . 'getFile';
+        $resp = Http::timeout(20)->asForm()->post($url, ['file_id' => $fileId]);
+        $data = $resp->json() ?? [];
+        if (!($data['ok'] ?? false)) {
+            Log::warning('TG getFile not ok', ['status' => $resp->status(), 'body' => $data]);
+            return null;
+        }
+        return $data['result'] ?? null;
+    }
+
+    /**
+     * downloadFile: download bytes by file_path
+     */
+    public function downloadFile(string $filePath): ?string
+    {
+        $url = $this->fileBaseUrl . ltrim($filePath, '/');
+        $resp = Http::timeout(120)->get($url);
+        if (!$resp->ok()) {
+            Log::warning('TG download file failed', ['status' => $resp->status(), 'url' => $url]);
+            return null;
+        }
+        return $resp->body();
     }
 }
