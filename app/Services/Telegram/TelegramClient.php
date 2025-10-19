@@ -30,11 +30,19 @@ class TelegramClient
     {
         $url = $this->baseUrl . 'getUpdates';
         Log::debug('TG getUpdates request', ['params' => $params]);
-        $resp = Http::timeout(($params['timeout'] ?? 30) + 5)
-            ->get($url, $params);
-        $data = $resp->json() ?? [];
-        Log::debug('TG getUpdates response', ['status' => $resp->status(), 'ok' => $data['ok'] ?? null, 'result_count' => isset($data['result']) ? count($data['result']) : null]);
-        return $data;
+        try {
+            $resp = Http::retry(1, 500)
+                ->connectTimeout(10)
+                ->timeout(($params['timeout'] ?? 30) + 5)
+                ->get($url, $params);
+            $data = $resp->json() ?? [];
+            Log::debug('TG getUpdates response', ['status' => $resp->status(), 'ok' => $data['ok'] ?? null, 'result_count' => isset($data['result']) ? count($data['result']) : null]);
+            return $data;
+        } catch (\Throwable $e) {
+            // Не рвём цикл при таймауте long-poll, просто возвращаем пустой набор
+            Log::warning('TG getUpdates timeout or error', ['error' => $e->getMessage()]);
+            return ['ok' => true, 'result' => []];
+        }
     }
 
     /**

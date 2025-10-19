@@ -39,5 +39,14 @@ return [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
     ],
 
+    'ilovepdf' => [
+        'public_key' => env('ILOVEPDF_PUBLIC_KEY'),
+        'secret_key' => env('ILOVEPDF_SECRET_KEY'),
+        // default quality mode for compress: recommended|extreme|low|medium|high (per SDK/docs)
+        'compress_mode' => env('ILOVEPDF_COMPRESS_MODE', 'recommended'),
+        // timeouts in seconds
+        'timeout' => env('ILOVEPDF_TIMEOUT', 120),
+    ],
+
 ];
 

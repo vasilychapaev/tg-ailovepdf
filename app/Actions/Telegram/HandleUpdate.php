@@ -82,9 +82,10 @@ class HandleUpdate
                 $res = $this->compress->compress($inFull, $outFull);
                 $after = (int) ($res['size_after'] ?? (@filesize($outFull) ?: 0));
 
-                // caption metrics
+                // caption metrics with ASCII progress bar
                 [$hBefore, $hAfter, $pct] = $this->humanMetrics($before, $after);
-                $caption = "Было: {$hBefore}, стало: {$hAfter} (−{$pct}%). CID: {$cid}";
+                $progressBar = $this->generateProgressBar($before, $after);
+                $caption = "📄 PDF оптимизирован: \nБыло: {$hBefore} → Стало: {$hAfter} (−{$pct}%)\n{$progressBar}";
 
                 // send result
                 $this->telegram->sendDocument($chatId, $outFull, [
@@ -147,5 +148,20 @@ class HandleUpdate
             $val /= 1024; $i++;
         }
         return number_format($val, $i === 0 ? 0 : 2, '.', '') . ' ' . $units[$i];
+    }
+
+    /**
+     * Генерирует ASCII прогресс-бар для визуализации сжатия
+     */
+    private function generateProgressBar(int $before, int $after): string
+    {
+        $totalBars = 20;
+        $compressedBars = min($totalBars, (int) round(($after / $before) * $totalBars));
+        $savedBars = $totalBars - $compressedBars;
+
+        $compressed = str_repeat('█', $compressedBars);
+        $saved = str_repeat('░', $savedBars);
+
+        return "{$compressed}{$saved}";
     }
 }
