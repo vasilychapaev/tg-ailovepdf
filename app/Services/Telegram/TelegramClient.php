@@ -92,17 +92,18 @@ class TelegramClient
 
     /**
      * getFile: resolve file_id to file_path
+     * @return array{result:?array,error:?array} Returns array with 'result' (file info) or 'error' (error info)
      */
-    public function getFile(string $fileId): ?array
+    public function getFile(string $fileId): array
     {
         $url = $this->baseUrl . 'getFile';
         $resp = Http::timeout(20)->asForm()->post($url, ['file_id' => $fileId]);
         $data = $resp->json() ?? [];
         if (!($data['ok'] ?? false)) {
             Log::warning('TG getFile not ok', ['status' => $resp->status(), 'body' => $data]);
-            return null;
+            return ['result' => null, 'error' => $data];
         }
-        return $data['result'] ?? null;
+        return ['result' => $data['result'] ?? null, 'error' => null];
     }
 
     /**

@@ -48,9 +48,27 @@ class HandleUpdate
                 $fileId = (string) Arr::get($document, 'file_id');
                 $origName = (string) Arr::get($document, 'file_name', 'document.pdf');
                 $sizeBeforeMeta = (int) (Arr::get($document, 'file_size', 0) ?: 0);
+                $fileSizeLimit = 20 * 1024 * 1024; // 20 МБ
+
+                // Проверка размера файла
+                if ($sizeBeforeMeta > 0 && $sizeBeforeMeta > $fileSizeLimit) {
+                    $humanSize = $this->humanSize($sizeBeforeMeta);
+                    $this->telegram->sendMessage($chatId, "⚠️ Файл слишком большой ({$humanSize}). Лимит: 20 МБ. Файлы больше этого размера пока обработать не можем. Извиняемся за неудобства — мы работаем над решением этой проблемы.");
+                }
 
                 // resolve file_path and download
-                $fileInfo = $this->telegram->getFile($fileId);
+                $fileResponse = $this->telegram->getFile($fileId);
+                $fileInfo = $fileResponse['result'] ?? null;
+                $apiError = $fileResponse['error'] ?? null;
+
+                // Обработка ошибок от Telegram API
+                if ($apiError !== null) {
+                    $errorDescription = Arr::get($apiError, 'description', 'Неизвестная ошибка');
+                    $errorCode = Arr::get($apiError, 'error_code', 'unknown');
+                    $this->telegram->sendMessage($chatId, "❌ Ошибка от Telegram API: {$errorDescription} (код: {$errorCode})");
+                    return;
+                }
+
                 if (!$fileInfo) {
                     throw new \RuntimeException('Не удалось получить file_path по file_id');
                 }
@@ -112,13 +130,16 @@ class HandleUpdate
     private function handleText(int|string $chatId, string $text): void
     {
         $cmd = trim($text);
-        if ($cmd === '/start' || $cmd === '/help') {
-            $this->telegram->sendMessage($chatId, "Отправьте PDF — я его сожму и верну. Если пришлёте текст или не-PDF, подскажу, что нужен PDF.");
-            return;
-        }
+        // if ($cmd === '/start' || $cmd === '/help') {
+            // $this->telegram->sendMessage($chatId, "Отправьте PDF — я его сожму и верну. Если пришлёте текст или не-PDF, подскажу, что нужен PDF.\n\n⚠️ 20 МБ - лимит от телеграма для ботов. \nЛимиты обойдем. Ждите новыйх версий");
+            // return;
+        // }
 
-        $this->telegram->sendMessage($chatId, 'Echo: ' . $text);
-        $this->telegram->sendMessage($chatId, 'Пожалуйста, пришлите PDF, я его сожму.');
+        if ($text) {
+            $this->telegram->sendMessage($chatId, 'Echo: ' . $text);
+            // $this->telegram->sendMessage($chatId, 'Пожалуйста, пришлите PDF, я его сожму.');
+        } 
+        $this->telegram->sendMessage($chatId, "Отправьте PDF — я его сожму и верну.\nЕсли пришлёте текст или не-PDF, подскажу, что нужен PDF.\n\n⚠️ 20 МБ - лимит от телеграма для ботов. \nЛимиты обойдем. Ждите новыйх версий");
     }
 
     private function sanitizeFileName(string $name): string
